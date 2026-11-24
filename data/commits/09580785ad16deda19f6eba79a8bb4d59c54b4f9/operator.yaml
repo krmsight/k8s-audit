@@ -1,0 +1,833 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: deployment
+    app.kubernetes.io/part-of: hyperconverged-cluster
+    app.kubernetes.io/version: 1.8.0
+    name: hyperconverged-cluster-operator
+  name: hyperconverged-cluster-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: hyperconverged-cluster-operator
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: deployment
+        app.kubernetes.io/part-of: hyperconverged-cluster
+        app.kubernetes.io/version: 1.8.0
+        name: hyperconverged-cluster-operator
+    spec:
+      containers:
+      - command:
+        - hyperconverged-cluster-operator
+        env:
+        - name: WEBHOOK_MODE
+          value: "false"
+        - name: APP
+          value: OPERATOR
+        - name: KVM_EMULATION
+        - name: OPERATOR_IMAGE
+          value: quay.io/kubevirt/hyperconverged-cluster-operator:1.8.0-unstable
+        - name: OPERATOR_NAME
+          value: hyperconverged-cluster-operator
+        - name: OPERATOR_NAMESPACE
+          value: kubevirt-hyperconverged
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: WATCH_NAMESPACE
+        - name: VIRTIOWIN_CONTAINER
+          value: quay.io/kubevirt/virtio-container-disk@sha256:3e88b9bde8792ba21d6cdaad70c79d5e9b339ef676402e932c6fcc2bda100d04
+        - name: SMBIOS
+          value: |-
+            Family: KubeVirt
+            Manufacturer: KubeVirt
+            Product: None
+        - name: MACHINETYPE
+        - name: HCO_KV_IO_VERSION
+          value: 1.8.0
+        - name: KUBEVIRT_VERSION
+          value: v0.55.0
+        - name: CDI_VERSION
+          value: v1.52.0
+        - name: NETWORK_ADDONS_VERSION
+          value: v0.77.0
+        - name: SSP_VERSION
+          value: v0.15.0
+        - name: TTO_VERSION
+          value: v0.3.0
+        - name: HPPO_VERSION
+          value: v0.13.0
+        - name: KV_CONSOLE_PLUGIN_IMAGE
+        image: quay.io/kubevirt/hyperconverged-cluster-operator:1.8.0-unstable
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 1
+          httpGet:
+            path: /livez
+            port: 6060
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 5
+        name: hyperconverged-cluster-operator
+        readinessProbe:
+          failureThreshold: 1
+          httpGet:
+            path: /readyz
+            port: 6060
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: 10m
+            memory: 96Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      priorityClassName: system-cluster-critical
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: hyperconverged-cluster-operator
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: deployment
+    app.kubernetes.io/part-of: hyperconverged-cluster
+    app.kubernetes.io/version: 1.8.0
+    name: hyperconverged-cluster-webhook
+  name: hyperconverged-cluster-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: hyperconverged-cluster-webhook
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: deployment
+        app.kubernetes.io/part-of: hyperconverged-cluster
+        app.kubernetes.io/version: 1.8.0
+        name: hyperconverged-cluster-webhook
+    spec:
+      containers:
+      - command:
+        - hyperconverged-cluster-webhook
+        env:
+        - name: WEBHOOK_MODE
+          value: "true"
+        - name: APP
+          value: WEBHOOK
+        - name: OPERATOR_IMAGE
+          value: quay.io/kubevirt/hyperconverged-cluster-webhook:1.8.0-unstable
+        - name: OPERATOR_NAME
+          value: hyperconverged-cluster-webhook
+        - name: OPERATOR_NAMESPACE
+          value: kubevirt-hyperconverged
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: WATCH_NAMESPACE
+        image: quay.io/kubevirt/hyperconverged-cluster-webhook:1.8.0-unstable
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 1
+          httpGet:
+            path: /livez
+            port: 6060
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 5
+        name: hyperconverged-cluster-webhook
+        readinessProbe:
+          failureThreshold: 1
+          httpGet:
+            path: /readyz
+            port: 6060
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: 5m
+            memory: 48Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - mountPath: /apiserver.local.config/certificates
+          name: apiservice-cert
+      priorityClassName: system-node-critical
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: hyperconverged-cluster-operator
+      volumes:
+      - name: apiservice-cert
+        secret:
+          defaultMode: 420
+          items:
+          - key: tls.crt
+            path: apiserver.crt
+          - key: tls.key
+            path: apiserver.key
+          secretName: hyperconverged-cluster-webhook-service-cert
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: deployment
+    app.kubernetes.io/part-of: hyperconverged-cluster
+    app.kubernetes.io/version: 1.8.0
+    name: hyperconverged-cluster-cli-download
+  name: hyperconverged-cluster-cli-download
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: hyperconverged-cluster-cli-download
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: deployment
+        app.kubernetes.io/part-of: hyperconverged-cluster
+        app.kubernetes.io/version: 1.8.0
+        name: hyperconverged-cluster-cli-download
+    spec:
+      containers:
+      - image: quay.io/kubevirt/virt-artifacts-server:1.8.0-unstable
+        imagePullPolicy: IfNotPresent
+        name: server
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 10m
+            memory: 96Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      priorityClassName: system-cluster-critical
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: network
+    app.kubernetes.io/part-of: hyperconverged-cluster
+    app.kubernetes.io/version: 1.8.0
+    name: cluster-network-addons-operator
+  name: cluster-network-addons-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: cluster-network-addons-operator
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        description: cluster-network-addons-operator manages the lifecycle of different
+          Kubernetes network components on top of Kubernetes cluster
+      labels:
+        app.kubernetes.io/component: network
+        app.kubernetes.io/part-of: hyperconverged-cluster
+        app.kubernetes.io/version: 1.8.0
+        name: cluster-network-addons-operator
+        prometheus.cnao.io: "true"
+    spec:
+      containers:
+      - env:
+        - name: MULTUS_IMAGE
+          value: ghcr.io/k8snetworkplumbingwg/multus-cni@sha256:9479537fe0827d23bc40056e98f8d1e75778ec294d89ae4d8a62f83dfc74a31d
+        - name: LINUX_BRIDGE_IMAGE
+          value: quay.io/kubevirt/cni-default-plugins@sha256:5d9442c26f8750d44f97175f36dbd74bef503f782b9adefcfd08215d065c437a
+        - name: LINUX_BRIDGE_MARKER_IMAGE
+          value: quay.io/kubevirt/bridge-marker@sha256:6536d684834f1301941108fd4123a55df39c74234e442fad60a584b69cfe6069
+        - name: OVS_CNI_IMAGE
+          value: quay.io/kubevirt/ovs-cni-plugin@sha256:8512de2a79fbbd55fdbd4ff794da708b596309e9aa8b76d4d6daf38f4527f0e3
+        - name: OVS_MARKER_IMAGE
+          value: quay.io/kubevirt/ovs-cni-marker@sha256:45413d8092592130147b2408d585abdc5c8b36d68844992d50072b05334bf5a8
+        - name: KUBEMACPOOL_IMAGE
+          value: quay.io/kubevirt/kubemacpool@sha256:47c6de03c9527b760bb26bd2db77a6caa14fcb822553c030b6ee595a92395977
+        - name: MACVTAP_CNI_IMAGE
+          value: quay.io/kubevirt/macvtap-cni@sha256:1dee52c8e6bdb39da18a6893ff00f7c4cf003ce53306db0d9a73d877fe83143c
+        - name: KUBE_RBAC_PROXY_IMAGE
+          value: quay.io/openshift/origin-kube-rbac-proxy@sha256:baedb268ac66456018fb30af395bb3d69af5fff3252ff5d549f0231b1ebb6901
+        - name: OPERATOR_IMAGE
+          value: quay.io/kubevirt/cluster-network-addons-operator@sha256:d844dad0bb14ee0ec1254be7bee5f744c930de1783fc7ed1c23ecc1fb8b9f71e
+        - name: OPERATOR_NAME
+          value: cluster-network-addons-operator
+        - name: OPERATOR_VERSION
+          value: v0.77.0
+        - name: OPERATOR_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: OPERAND_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: WATCH_NAMESPACE
+        - name: MONITORING_NAMESPACE
+          value: openshift-monitoring
+        - name: MONITORING_SERVICE_ACCOUNT
+          value: prometheus-k8s
+        image: quay.io/kubevirt/cluster-network-addons-operator@sha256:d844dad0bb14ee0ec1254be7bee5f744c930de1783fc7ed1c23ecc1fb8b9f71e
+        imagePullPolicy: IfNotPresent
+        name: cluster-network-addons-operator
+        resources:
+          requests:
+            cpu: 50m
+            memory: 30Mi
+      - args:
+        - --logtostderr
+        - --secure-listen-address=:8443
+        - --upstream=http://127.0.0.1:8080
+        image: quay.io/openshift/origin-kube-rbac-proxy@sha256:baedb268ac66456018fb30af395bb3d69af5fff3252ff5d549f0231b1ebb6901
+        imagePullPolicy: IfNotPresent
+        name: kube-rbac-proxy
+        ports:
+        - containerPort: 8443
+          name: metrics
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 10m
+            memory: 20Mi
+        terminationMessagePolicy: FallbackToLogsOnError
+      priorityClassName: system-cluster-critical
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: cluster-network-addons-operator
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: compute
+    app.kubernetes.io/part-of: hyperconverged-cluster
+    app.kubernetes.io/version: 1.8.0
+    name: virt-operator
+  name: virt-operator
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      kubevirt.io: virt-operator
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: compute
+        app.kubernetes.io/part-of: hyperconverged-cluster
+        app.kubernetes.io/version: 1.8.0
+        kubevirt.io: virt-operator
+        name: virt-operator
+        prometheus.kubevirt.io: "true"
+      name: virt-operator
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: kubevirt.io
+                  operator: In
+                  values:
+                  - virt-operator
+              topologyKey: kubernetes.io/hostname
+            weight: 1
+      containers:
+      - args:
+        - --port
+        - "8443"
+        - -v
+        - "2"
+        command:
+        - virt-operator
+        env:
+        - name: OPERATOR_IMAGE
+          value: quay.io/kubevirt/virt-operator@sha256:d7ce16552a0ae3b112c9b806999f298c974214b5c53f20811498807bdc3cd5fe
+        - name: WATCH_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.annotations['olm.targetNamespaces']
+        - name: KUBEVIRT_VERSION
+          value: v0.55.0
+        - name: VIRT_API_SHASUM
+          value: sha256:55fe0bf4a4d700bbaf6b7ac6dfc61999f342e54760fb8bbd13399253874317dc
+        - name: VIRT_CONTROLLER_SHASUM
+          value: sha256:5e3e298f1e78a2f77858a5e28419bbf36b74c0fa8bbf917a8270a11970a6424c
+        - name: VIRT_HANDLER_SHASUM
+          value: sha256:02f08af1ba6bd44f855fbbee33b48b96b2f3799ee6b395b7aa8d75fa7b703e44
+        - name: VIRT_LAUNCHER_SHASUM
+          value: sha256:43f223a6bf9c40cc86408d9acb49dd3bd95c87f09a120dab90f367547c31c792
+        - name: VIRT_EXPORTPROXY_SHASUM
+        - name: VIRT_EXPORTSERVER_SHASUM
+        - name: GS_SHASUM
+          value: sha256:f41fcf9bcd6effe39ab8d35dd83067189a0684b96c3baf524d0b1da2e8aee519
+        image: quay.io/kubevirt/virt-operator@sha256:d7ce16552a0ae3b112c9b806999f298c974214b5c53f20811498807bdc3cd5fe
+        imagePullPolicy: IfNotPresent
+        name: virt-operator
+        ports:
+        - containerPort: 8443
+          name: metrics
+          protocol: TCP
+        - containerPort: 8444
+          name: webhooks
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          timeoutSeconds: 10
+        resources:
+          requests:
+            cpu: 10m
+            memory: 150Mi
+        volumeMounts:
+        - mountPath: /etc/virt-operator/certificates
+          name: kubevirt-operator-certs
+          readOnly: true
+        - mountPath: /profile-data
+          name: profile-data
+      priorityClassName: kubevirt-cluster-critical
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: kubevirt-operator
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      volumes:
+      - name: kubevirt-operator-certs
+        secret:
+          optional: true
+          secretName: kubevirt-operator-certs
+      - emptyDir: {}
+        name: profile-data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: schedule
+    app.kubernetes.io/part-of: hyperconverged-cluster
+    app.kubernetes.io/version: 1.8.0
+    name: ssp-operator
+  name: ssp-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: ssp-operator
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: schedule
+        app.kubernetes.io/part-of: hyperconverged-cluster
+        app.kubernetes.io/version: 1.8.0
+        control-plane: ssp-operator
+        name: ssp-operator
+        prometheus.ssp.kubevirt.io: "true"
+    spec:
+      containers:
+      - args:
+        - --leader-elect
+        command:
+        - /manager
+        env:
+        - name: KVM_INFO_IMAGE
+        - name: VALIDATOR_IMAGE
+          value: quay.io/kubevirt/kubevirt-template-validator:v0.15.0
+        - name: VIRT_LAUNCHER_IMAGE
+        - name: NODE_LABELLER_IMAGE
+        - name: CPU_PLUGIN_IMAGE
+        - name: OPERATOR_VERSION
+          value: v0.15.0
+        image: quay.io/kubevirt/ssp-operator@sha256:878cfc0fc98632aeb30fe693e6368f4b888a262241db095f0bbc681b2ea684b0
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        - containerPort: 8443
+          name: metrics
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 100m
+            memory: 150Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+        volumeMounts:
+        - mountPath: /apiserver.local.config/certificates
+          name: apiservice-cert
+      priorityClassName: system-cluster-critical
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: ssp-operator
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: apiservice-cert
+        secret:
+          defaultMode: 420
+          items:
+          - key: tls.crt
+            path: apiserver.crt
+          - key: tls.key
+            path: apiserver.key
+          secretName: ssp-operator-service-cert
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: tekton
+    app.kubernetes.io/part-of: hyperconverged-cluster
+    app.kubernetes.io/version: 1.8.0
+    name: tekton-tasks-operator
+  name: tekton-tasks-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: tekton-tasks-operator
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: tekton
+        app.kubernetes.io/part-of: hyperconverged-cluster
+        app.kubernetes.io/version: 1.8.0
+        control-plane: tekton-tasks-operator
+        name: tekton-tasks-operator
+        prometheus.kubevirt.io: "true"
+      namespace: kubevirt-hyperconverged
+    spec:
+      containers:
+      - args:
+        - --leader-elect
+        command:
+        - /manager
+        env:
+        - name: OPERATOR_VERSION
+          value: v0.3.0
+        - name: CLEANUP_VM_IMG
+        - name: COPY_TEMPLATE_IMG
+        - name: CREATE_DATAVOLUME_IMG
+        - name: CREATE_VM_IMG
+        - name: DISK_VIRT_CUSTOMIZE_IMG
+        - name: DISK_VIRT_SYSPREP_IMG
+        - name: MODIFY_VM_TEMPLATE_IMG
+        - name: WAIT_FOR_VMI_STATUS_IMG
+        - name: GENERATE_SSH_KEYS_IMG
+        - name: OPERATOR_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        image: quay.io/kubevirt/tekton-tasks-operator@sha256:aa8ed6cd59dc235c02f8170e4b272e67801e87fe35767d2c6b31891e534a2295
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 8443
+          name: metrics
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 100m
+            memory: 150Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+      priorityClassName: system-cluster-critical
+      serviceAccountName: tekton-tasks-operator
+      terminationGracePeriodSeconds: 10
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/part-of: hyperconverged-cluster
+    app.kubernetes.io/version: 1.8.0
+    name: cdi-operator
+  name: cdi-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: cdi-operator
+      operator.cdi.kubevirt.io: ""
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: storage
+        app.kubernetes.io/part-of: hyperconverged-cluster
+        app.kubernetes.io/version: 1.8.0
+        name: cdi-operator
+        operator.cdi.kubevirt.io: ""
+        prometheus.cdi.kubevirt.io: "true"
+    spec:
+      containers:
+      - env:
+        - name: DEPLOY_CLUSTER_RESOURCES
+          value: "true"
+        - name: OPERATOR_VERSION
+          value: v1.52.0
+        - name: CONTROLLER_IMAGE
+          value: quay.io/kubevirt/cdi-controller@sha256:983ba20359ab61055d2dfbaeefa7f377b22dcfa7059ca4443ec02d6af3c064f8
+        - name: IMPORTER_IMAGE
+          value: quay.io/kubevirt/cdi-importer@sha256:2919aa47422f1d1b849208f051b44a558c99de9a35db8eb69294fc5c18fb4b0e
+        - name: CLONER_IMAGE
+          value: quay.io/kubevirt/cdi-cloner@sha256:b9a2c4f129ecf1552ab9e1023feaaddfa0334a232c7fbb78143cd7d046d30ea0
+        - name: APISERVER_IMAGE
+          value: quay.io/kubevirt/cdi-apiserver@sha256:0143bb215d366a5b4ea11afc6236c6566022740c6f18e23d2784e904666a1651
+        - name: UPLOAD_SERVER_IMAGE
+          value: quay.io/kubevirt/cdi-uploadserver@sha256:65386bc3bc63e3c5690ae2bbe2ef7edcfa4357de6148720029d7dfa4a175556f
+        - name: UPLOAD_PROXY_IMAGE
+          value: quay.io/kubevirt/cdi-uploadproxy@sha256:47a02e259d12d8ce77330e3df148d73f4a55aaab8255a0530ada858a46343e3f
+        - name: VERBOSITY
+          value: "1"
+        - name: PULL_POLICY
+          value: IfNotPresent
+        - name: MONITORING_NAMESPACE
+        image: quay.io/kubevirt/cdi-operator@sha256:d22dc4ce058c662d9515ddab4e964b159b6ea46c4ab6daf70c882a7948990669
+        imagePullPolicy: IfNotPresent
+        name: cdi-operator
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 10m
+            memory: 150Mi
+      nodeSelector:
+        kubernetes.io/os: linux
+      priorityClassName: kubevirt-cluster-critical
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: cdi-operator
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/part-of: hyperconverged-cluster
+    app.kubernetes.io/version: 1.8.0
+    name: hostpath-provisioner-operator
+  name: hostpath-provisioner-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: hostpath-provisioner-operator
+      operator.hostpath-provisioner.kubevirt.io: ""
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: storage
+        app.kubernetes.io/part-of: hyperconverged-cluster
+        app.kubernetes.io/version: 1.8.0
+        name: hostpath-provisioner-operator
+        operator.hostpath-provisioner.kubevirt.io: ""
+        prometheus.hostpathprovisioner.kubevirt.io: "true"
+    spec:
+      containers:
+      - command:
+        - hostpath-provisioner-operator
+        env:
+        - name: WATCH_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: INSTALLER_PART_OF_LABEL
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['app.kubernetes.io/part-of']
+        - name: INSTALLER_VERSION_LABEL
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['app.kubernetes.io/version']
+        - name: OPERATOR_NAME
+          value: hostpath-provisioner-operator
+        - name: OPERATOR_IMAGE
+          value: quay.io/kubevirt/hostpath-provisioner-operator@sha256:ffde3b1c4b682de6c3ca1932bbb9526a794b214560a262608d3a4c43b9aa7481
+        - name: PROVISIONER_IMAGE
+          value: quay.io/kubevirt/hostpath-provisioner@sha256:f1cd0f057ff7b125b3dd5b3ce6a40796467a1d9df4a1224fb0ed6af24b13b8a6
+        - name: CSI_PROVISIONER_IMAGE
+          value: quay.io/kubevirt/hostpath-csi-driver@sha256:c4c57725f677e0413e5b2c1b1e8e2dd473dd7f1d88cdaf76106708056ef3a78d
+        - name: NODE_DRIVER_REG_IMAGE
+          value: k8s.gcr.io/sig-storage/csi-node-driver-registrar@sha256:2dee3fe5fe861bb66c3a4ac51114f3447a4cd35870e0f2e2b558c7a400d89589
+        - name: LIVENESS_PROBE_IMAGE
+          value: k8s.gcr.io/sig-storage/livenessprobe@sha256:1b7c978a792a8fa4e96244e8059bd71bb49b07e2e5a897fb0c867bdc6db20d5d
+        - name: CSI_SNAPSHOT_IMAGE
+          value: k8s.gcr.io/sig-storage/csi-snapshotter@sha256:818f35653f2e214db81d655063e81995de9073328a3430498624c140881026a3
+        - name: CSI_SIG_STORAGE_PROVISIONER_IMAGE
+          value: k8s.gcr.io/sig-storage/csi-provisioner@sha256:4e74c0492bceddc598de1c90cc5bc14dcda94cb49fa9c5bad9d117c4834b5e08
+        - name: VERBOSITY
+          value: "1"
+        - name: MONITORING_NAMESPACE
+        - name: PRIORITY_CLASS
+          value: kubevirt-cluster-critical
+        image: quay.io/kubevirt/hostpath-provisioner-operator@sha256:ffde3b1c4b682de6c3ca1932bbb9526a794b214560a262608d3a4c43b9aa7481
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 1
+          httpGet:
+            path: /livez
+            port: 6060
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 5
+        name: hostpath-provisioner-operator
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 1
+          httpGet:
+            path: /readyz
+            port: 6060
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: 10m
+            memory: 150Mi
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: apiservice-cert
+      priorityClassName: kubevirt-cluster-critical
+      serviceAccountName: hostpath-provisioner-operator
+      volumes:
+      - name: apiservice-cert
+        secret:
+          defaultMode: 420
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          secretName: hostpath-provisioner-operator-webhook-service-cert
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hyperconverged-cluster-webhook-service
+spec:
+  ports:
+  - name: "4343"
+    port: 4343
+    protocol: TCP
+    targetPort: 4343
+  selector:
+    name: hyperconverged-cluster-webhook
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: ssp-operator
+  name: ssp-operator-service
+spec:
+  ports:
+  - name: "9443"
+    port: 9443
+    protocol: TCP
+    targetPort: 9443
+  selector:
+    control-plane: ssp-operator
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: hostpath-provisioner-operator
+  name: hostpath-provisioner-operator-service
+spec:
+  ports:
+  - name: "9443"
+    port: 9443
+    protocol: TCP
+    targetPort: 9443
+  selector:
+    name: hostpath-provisioner-operator
+    operator.hostpath-provisioner.kubevirt.io: ""
+  type: ClusterIP
