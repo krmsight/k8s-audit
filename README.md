@@ -1,4 +1,4 @@
-#K8S audit
+# K8s-audit
 
 **Security audit for Kubernetes manifests.** k8s-audit runs [Trivy](https://github.com/aquasecurity/trivy) and [Kubescape](https://github.com/kubescape/kubescape) on your YAML files, merges their findings into a single list sorted by severity, and produces reports you can actually read: Markdown, HTML, CSV and Excel.
 
